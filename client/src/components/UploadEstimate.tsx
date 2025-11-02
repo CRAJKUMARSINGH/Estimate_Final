@@ -2,19 +2,67 @@ import { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Upload, FileSpreadsheet, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Upload, FileSpreadsheet, X, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { useLocation } from "wouter";
 
 export function UploadEstimate() {
   const [file, setFile] = useState<File | null>(null);
+  const [projectName, setProjectName] = useState("");
+  const [location, setLocation] = useState("");
+  const [engineerName, setEngineerName] = useState("");
+  const [referenceNumber, setReferenceNumber] = useState("");
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
+
+  const uploadMutation = useMutation({
+    mutationFn: async () => {
+      if (!file) throw new Error("No file selected");
+      
+      return api.uploadExcel(file, {
+        projectName: projectName || file.name.replace(/\.(xlsx|xls)$/i, ''),
+        location,
+        engineerName,
+        referenceNumber,
+      });
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Estimate Created",
+        description: `${data.estimate.projectName} has been uploaded and processed successfully.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/estimates'] });
+      setFile(null);
+      setProjectName("");
+      setLocation("");
+      setEngineerName("");
+      setReferenceNumber("");
+      
+      navigate(`/estimate/${data.estimate.id}`);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Upload Failed",
+        description: error.message || "Failed to upload the file. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
-      setFile(acceptedFiles[0]);
-      console.log('File uploaded:', acceptedFiles[0].name);
+      const uploadedFile = acceptedFiles[0];
+      setFile(uploadedFile);
+      if (!projectName) {
+        setProjectName(uploadedFile.name.replace(/\.(xlsx|xls)$/i, ''));
+      }
     }
-  }, []);
+  }, [projectName]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -27,11 +75,7 @@ export function UploadEstimate() {
 
   const handleUpload = () => {
     if (file) {
-      console.log('Processing file:', file.name);
-      toast({
-        title: "File uploaded",
-        description: `${file.name} has been uploaded successfully.`,
-      });
+      uploadMutation.mutate();
     }
   };
 
@@ -86,8 +130,69 @@ export function UploadEstimate() {
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            <Button onClick={handleUpload} className="w-full" data-testid="button-upload">
-              Process Estimate
+            
+            <div className="space-y-4 p-4 border rounded-md bg-muted/30">
+              <div className="space-y-2">
+                <Label htmlFor="projectName">Project Name</Label>
+                <Input
+                  id="projectName"
+                  value={projectName}
+                  onChange={(e) => setProjectName(e.target.value)}
+                  placeholder="Enter project name"
+                  data-testid="input-project-name"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="location">Location</Label>
+                  <Input
+                    id="location"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="e.g., Mumbai"
+                    data-testid="input-location"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="engineerName">Engineer Name</Label>
+                  <Input
+                    id="engineerName"
+                    value={engineerName}
+                    onChange={(e) => setEngineerName(e.target.value)}
+                    placeholder="Enter engineer name"
+                    data-testid="input-engineer"
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="referenceNumber">Reference Number</Label>
+                <Input
+                  id="referenceNumber"
+                  value={referenceNumber}
+                  onChange={(e) => setReferenceNumber(e.target.value)}
+                  placeholder="e.g., EST-2025-001"
+                  data-testid="input-reference"
+                />
+              </div>
+            </div>
+            
+            <Button 
+              onClick={handleUpload} 
+              className="w-full" 
+              data-testid="button-upload"
+              disabled={uploadMutation.isPending}
+            >
+              {uploadMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                'Process Estimate'
+              )}
             </Button>
           </div>
         )}

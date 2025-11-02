@@ -2,7 +2,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, Plus, Edit, Copy, Download, Trash2 } from "lucide-react";
+import { Search, Filter, Plus, Edit, Copy, Download, Trash2, Loader2 } from "lucide-react";
+import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { Estimate as EstimateType } from "@shared/schema";
 import {
   Table,
   TableBody,
@@ -19,71 +23,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-interface Estimate {
-  id: string;
-  projectName: string;
-  location: string;
-  date: string;
-  parts: number;
-  amount: string;
-  status: "draft" | "submitted" | "approved" | "archived";
-}
-
-const mockEstimates: Estimate[] = [
-  {
-    id: "1",
-    projectName: "Highway Construction Phase 1",
-    location: "Mumbai",
-    date: "2025-01-28",
-    parts: 3,
-    amount: "₹45,00,000",
-    status: "approved",
-  },
-  {
-    id: "2",
-    projectName: "Building Foundation Work",
-    location: "Delhi",
-    date: "2025-01-25",
-    parts: 2,
-    amount: "₹22,50,000",
-    status: "submitted",
-  },
-  {
-    id: "3",
-    projectName: "Bridge Repair & Maintenance",
-    location: "Bangalore",
-    date: "2025-01-20",
-    parts: 4,
-    amount: "₹67,00,000",
-    status: "draft",
-  },
-  {
-    id: "4",
-    projectName: "Road Expansion Project",
-    location: "Pune",
-    date: "2025-01-15",
-    parts: 2,
-    amount: "₹31,00,000",
-    status: "approved",
-  },
-  {
-    id: "5",
-    projectName: "Drainage System Installation",
-    location: "Chennai",
-    date: "2025-01-10",
-    parts: 3,
-    amount: "₹18,50,000",
-    status: "archived",
-  },
-];
-
 export default function Estimates() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  const filteredEstimates = mockEstimates.filter((estimate) => {
+  const { data: estimates = [], isLoading } = useQuery<EstimateType[]>({
+    queryKey: ['/api/estimates'],
+    queryFn: () => api.getEstimates(),
+  });
+
+  const filteredEstimates = estimates.filter((estimate) => {
     const matchesSearch = estimate.projectName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         estimate.location.toLowerCase().includes(searchQuery.toLowerCase());
+                         (estimate.location && estimate.location.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesStatus = statusFilter === "all" || estimate.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -97,10 +48,12 @@ export default function Estimates() {
             Manage and view all project estimates
           </p>
         </div>
-        <Button data-testid="button-create-estimate">
-          <Plus className="h-4 w-4 mr-2" />
-          Create Estimate
-        </Button>
+        <Link href="/dashboard">
+          <Button data-testid="button-create-estimate">
+            <Plus className="h-4 w-4 mr-2" />
+            Upload Estimate
+          </Button>
+        </Link>
       </div>
 
       <div className="flex gap-4 flex-wrap">
@@ -143,63 +96,77 @@ export default function Estimates() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredEstimates.length > 0 ? (
-              filteredEstimates.map((estimate) => (
-                <TableRow key={estimate.id} className="hover-elevate">
-                  <TableCell className="font-medium" data-testid={`text-project-${estimate.id}`}>
-                    {estimate.projectName}
-                  </TableCell>
-                  <TableCell className="text-sm">{estimate.location}</TableCell>
-                  <TableCell className="text-sm">{estimate.date}</TableCell>
-                  <TableCell className="text-sm">{estimate.parts}</TableCell>
-                  <TableCell className="font-mono text-sm">{estimate.amount}</TableCell>
-                  <TableCell>
-                    <Badge variant="default" className="capitalize">
-                      {estimate.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex gap-2 justify-end">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => console.log('Edit:', estimate.id)}
-                        data-testid={`button-edit-${estimate.id}`}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => console.log('Duplicate:', estimate.id)}
-                        data-testid={`button-duplicate-${estimate.id}`}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => console.log('Download:', estimate.id)}
-                        data-testid={`button-download-${estimate.id}`}
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => console.log('Delete:', estimate.id)}
-                        data-testid={`button-delete-${estimate.id}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">Loading estimates...</p>
+                </TableCell>
+              </TableRow>
+            ) : filteredEstimates.length > 0 ? (
+              filteredEstimates.map((estimate) => {
+                const excelData = estimate.excelData as any;
+                const parts = excelData?.parts?.length || 0;
+                const dateStr = new Date(estimate.dateCreated).toLocaleDateString('en-IN');
+                
+                return (
+                  <TableRow key={estimate.id} className="hover-elevate">
+                    <TableCell className="font-medium" data-testid={`text-project-${estimate.id}`}>
+                      {estimate.projectName}
+                    </TableCell>
+                    <TableCell className="text-sm">{estimate.location || '-'}</TableCell>
+                    <TableCell className="text-sm">{dateStr}</TableCell>
+                    <TableCell className="text-sm">{parts}</TableCell>
+                    <TableCell className="font-mono text-sm">-</TableCell>
+                    <TableCell>
+                      <Badge variant="default" className="capitalize">
+                        {estimate.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex gap-2 justify-end">
+                        <Link href={`/estimate/${estimate.id}`}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            data-testid={`button-edit-${estimate.id}`}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => console.log('Duplicate:', estimate.id)}
+                          data-testid={`button-duplicate-${estimate.id}`}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => console.log('Download:', estimate.id)}
+                          data-testid={`button-download-${estimate.id}`}
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => console.log('Delete:', estimate.id)}
+                          data-testid={`button-delete-${estimate.id}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                  No estimates found
+                  No estimates found. Upload an Excel file to get started.
                 </TableCell>
               </TableRow>
             )}
