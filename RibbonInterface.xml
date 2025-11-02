@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui" onLoad="OnRibbonLoad">
+  <ribbon>
+    <tabs>
+      <tab id="ConstructionEstimation" label="Construction Estimation" insertAfterMso="TabHome">
+        
+        <!-- Import & Project Group -->
+        <group id="ImportProject" label="Import &amp; Project">
+          <button id="btnImportEstimate" 
+                  label="Import Sample Estimate" 
+                  size="large" 
+                  imageMso="ImportExcel"
+                  onAction="ImportSampleEstimate"
+                  screentip="Import Sample Estimate"
+                  supertip="Load an existing Excel estimate file and automatically map all sheet relationships, formulas, and linkages. Supports .xlsx format with automatic detection of Abstract-Measurement pairs."/>
+          
+          <button id="btnMainInterface" 
+                  label="Main Interface" 
+                  size="large" 
+                  imageMso="FormControlCommandButton"
+                  onAction="ShowMainInterface"
+                  screentip="Main Interface"
+                  supertip="Open the comprehensive Construction Estimation System interface with all management tools, export options, and system controls in one convenient dialog."/>
+        </group>
+        
+        <!-- Item Management Group -->
+        <group id="ItemManagement" label="Item Management">
+          <button id="btnAddItem" 
+                  label="Add New Item" 
+                  size="normal" 
+                  imageMso="TableInsertRowsAbove"
+                  onAction="AddNewItem"
+                  screentip="Add New Item"
+                  supertip="Insert a new line item in the currently selected Abstract or Measurement sheet. Automatically generates formulas and maintains all linkages to related sheets."/>
+          
+          <button id="btnDeleteItem" 
+                  label="Delete Item" 
+                  size="normal" 
+                  imageMso="TableDeleteRowsAndCells"
+                  onAction="DeleteSelectedItem"
+                  screentip="Delete Selected Item"
+                  supertip="Remove the currently selected item from the active sheet. All dependent formulas and totals are automatically updated across linked sheets."/>
+        </group>
+        
+        <!-- Part Management Group -->
+        <group id="PartManagement" label="Part Management">
+          <button id="btnAddPart" 
+                  label="Add New Part" 
+                  size="normal" 
+                  imageMso="CreateModule"
+                  onAction="CreateNewPartPair"
+                  screentip="Add New Part"
+                  supertip="Create a new construction part with paired Abstract of Cost and Measurement sheets. Automatically links to General Abstract and sets up all necessary formulas."/>
+          
+          <button id="btnDeletePart" 
+                  label="Delete Part" 
+                  size="normal" 
+                  imageMso="Delete"
+                  onAction="DeleteSelectedPart"
+                  screentip="Delete Part"
+                  supertip="Remove a complete part including both Abstract and Measurement sheets. Updates General Abstract automatically and provides confirmation for parts containing data."/>
+        </group>
+        
+        <!-- Export & Reports Group -->
+        <group id="ExportReports" label="Export &amp; Reports">
+          <button id="btnExportPDF" 
+                  label="Export to PDF" 
+                  size="large" 
+                  imageMso="ExportPDF"
+                  onAction="ExportToPDF"
+                  screentip="Export to PDF"
+                  supertip="Generate a complete PDF report with all sheets in logical order. Includes General Abstract, followed by each Abstract of Cost and its corresponding Measurement sheet. Formatted for professional printing."/>
+          
+          <splitButton id="splitExportMulti" size="large">
+            <button id="btnExportMulti" 
+                    label="Multi-Format Export" 
+                    imageMso="ExportMoreFormats"
+                    onAction="ExportMultiFormat"
+                    screentip="Multi-Format Export"
+                    supertip="Export estimate in multiple formats with selection dialog. Choose from PDF, clean Excel copy, CSV package, or printable HTML report."/>
+            <menu id="menuExportFormats">
+              <button id="btnExportExcel" 
+                      label="Export to Excel" 
+                      imageMso="ExportExcel"
+                      onAction="ExportToExcel"
+                      screentip="Export to Excel"
+                      supertip="Create a clean Excel copy without macros or protection. Preserves all formulas, formatting, and data for sharing or further editing."/>
+              <button id="btnExportCSV" 
+                      label="Export CSV Package" 
+                      imageMso="ExportTextFile"
+                      onAction="ExportToCSVPackage"
+                      screentip="Export CSV Package"
+                      supertip="Export all sheets as individual CSV files in a organized folder. Includes summary file with export details and instructions."/>
+              <button id="btnExportHTML" 
+                      label="Export to HTML" 
+                      imageMso="WebPagePreview"
+                      onAction="ExportToHTML"
+                      screentip="Export to HTML"
+                      supertip="Create a printable HTML report with professional styling. Includes all sheets with formatted tables, proper styling, and print optimization."/>
+            </menu>
+          </splitButton>
+        </group>
+        
+        <!-- System Tools Group -->
+        <group id="SystemTools" label="System Tools">
+          <button id="btnRebuildFormulas" 
+                  label="Rebuild Formulas" 
+                  size="normal" 
+                  imageMso="Refresh"
+                  onAction="RebuildAllFormulas"
+                  screentip="Rebuild Formulas"
+                  supertip="Rebuild all formulas and linkages between sheets. Use this if calculations appear incorrect or after importing complex estimate files. Recreates all Measurement→Abstract→General linkages."/>
+          
+          <button id="btnProtectSheets" 
+                  label="Protect Sheets" 
+                  size="normal" 
+                  imageMso="ReviewProtectDocument"
+                  onAction="ProtectAllSheets"
+                  screentip="Protect Sheets"
+                  supertip="Apply protection to all sheets, locking formula cells while keeping data entry cells editable. Prevents accidental formula changes while allowing normal data input."/>
+          
+          <button id="btnUnprotectSheets" 
+                  label="Unprotect Sheets" 
+                  size="normal" 
+                  imageMso="ReviewUnprotectDocument"
+                  onAction="UnprotectAllSheets"
+                  screentip="Unprotect Sheets"
+                  supertip="Remove protection from all sheets for maintenance or advanced editing. Use with caution as this allows modification of formula cells."/>
+        </group>
+        
+        <!-- Validation & Help Group -->
+        <group id="ValidationHelp" label="Validation &amp; Help">
+          <button id="btnValidateStructure" 
+                  label="Validate Structure" 
+                  size="normal" 
+                  imageMso="ReviewCheckDocument"
+                  onAction="ValidateSystemStructure"
+                  screentip="Validate Structure"
+                  supertip="Check that all required sheets exist and formulas are properly configured. Identifies missing linkages or structural issues that need attention."/>
+          
+          <button id="btnSystemInfo" 
+                  label="System Info" 
+                  size="normal" 
+                  imageMso="Info"
+                  onAction="ShowSystemInfo"
+                  screentip="System Information"
+                  supertip="Display comprehensive system information including version, installed features, current project details, and system status."/>
+          
+          <button id="btnUserGuide" 
+                  label="User Guide" 
+                  size="normal" 
+                  imageMso="Help"
+                  onAction="ShowSystemHelp"
+                  screentip="User Guide"
+                  supertip="Open the comprehensive user guide with detailed instructions, troubleshooting tips, keyboard shortcuts, and best practices for using the Construction Estimation System."/>
+        </group>
+        
+      </tab>
+    </tabs>
+  </ribbon>
+</customUI>
