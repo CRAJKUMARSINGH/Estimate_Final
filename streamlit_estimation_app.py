@@ -535,8 +535,25 @@ def import_ssr_from_excel(file_path):
         return False
 
 def import_complete_estimate(file_path):
-    """Import complete estimate from Excel file with all sheets and data"""
+    """Import complete estimate from Excel file with intelligent processing"""
     try:
+        # Use the specialized importer for better accuracy
+        from excel_importer_implementation import PanchayatSamitiEstimateImporter
+        
+        importer = PanchayatSamitiEstimateImporter()
+        
+        # Import with intelligent processing
+        estimate_data = importer.import_complete_estimate(file_path)
+        
+        # Update session state with imported data
+        importer.update_session_state(estimate_data)
+        
+        return True
+        
+    except ImportError:
+        # Fallback to basic import if specialized importer not available
+        st.warning("Using basic import method. For better accuracy, ensure excel_importer_implementation.py is available.")
+        
         # Read all sheets from Excel file
         all_sheets = pd.read_excel(file_path, sheet_name=None)
         
