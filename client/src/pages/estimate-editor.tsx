@@ -1,15 +1,11 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Save, Download, ArrowLeft } from "lucide-react";
 import { Link } from "wouter";
 import { EstimateSheetTabs } from "@/components/EstimateSheetTabs";
-import { ExcelTable } from "@/components/ExcelTable";
+import { ExcelTableWithSSR } from "@/components/ExcelTableWithSSR";
 import { ProjectMetadataForm } from "@/components/ProjectMetadataForm";
-import { SSRItemSelector } from "@/components/SSRItemSelector";
 
 export default function EstimateEditor() {
-  const [showSSRSelector, setShowSSRSelector] = useState(false);
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -42,13 +38,7 @@ export default function EstimateEditor() {
 
       <EstimateSheetTabs />
 
-      <ExcelTable />
-
-      <SSRItemSelector
-        open={showSSRSelector}
-        onOpenChange={setShowSSRSelector}
-        onSelect={(item) => console.log('Selected SSR item:', item)}
-      />
+      <ExcelTableWithSSR />
     </div>
   );
 }

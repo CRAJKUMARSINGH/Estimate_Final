@@ -71,7 +71,11 @@ export class MemStorage implements IStorage {
 
     sampleSSRItems.forEach((item) => {
       const id = randomUUID();
-      const ssrItem: SSRItem = { ...item, id };
+      const ssrItem: SSRItem = { 
+        ...item,
+        id,
+        category: item.category || null
+      };
       this.ssrItems.set(id, ssrItem);
     });
   }
@@ -88,8 +92,14 @@ export class MemStorage implements IStorage {
   async createEstimate(insertEstimate: InsertEstimate): Promise<Estimate> {
     const id = randomUUID();
     const estimate: Estimate = {
-      ...insertEstimate,
       id,
+      projectName: insertEstimate.projectName,
+      location: insertEstimate.location || null,
+      engineerName: insertEstimate.engineerName || null,
+      referenceNumber: insertEstimate.referenceNumber || null,
+      status: insertEstimate.status || "draft",
+      excelData: insertEstimate.excelData || null,
+      fileName: insertEstimate.fileName || null,
       dateCreated: new Date(),
     };
     this.estimates.set(id, estimate);
@@ -130,7 +140,14 @@ export class MemStorage implements IStorage {
 
   async createSSRItem(insertItem: InsertSSRItem): Promise<SSRItem> {
     const id = randomUUID();
-    const item: SSRItem = { ...insertItem, id };
+    const item: SSRItem = {
+      id,
+      code: insertItem.code,
+      description: insertItem.description,
+      unit: insertItem.unit,
+      rate: insertItem.rate,
+      category: insertItem.category || null,
+    };
     this.ssrItems.set(id, item);
     return item;
   }
