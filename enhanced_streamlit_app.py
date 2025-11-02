@@ -165,15 +165,136 @@ def calculate_total(quantity, length, breadth, height):
 def export_to_csv(dataframe, filename):
     return dataframe.to_csv(index=False).encode('utf-8')
 
+def get_default_rate_for_unit(unit):
+    """Get default rate based on unit type"""
+    unit_rates = {
+        'cum': 3500.0,
+        'sqm': 150.0,
+        'rm': 100.0,
+        'nos': 500.0,
+        'kg': 60.0,
+        'ton': 60000.0,
+        'ltr': 50.0,
+        'ls': 50000.0
+    }
+    return unit_rates.get(unit.lower(), 1000.0)
+
+def import_complete_estimate(file_path):
+    """Import complete estimate from Excel file with all sheets and data"""
+    try:
+        # Read all sheets from Excel file
+        all_sheets = pd.read_excel(file_path, sheet_name=None)
+        
+        # Process each sheet based on its name
+        measurement_data = []
+        abstract_data = []
+        ssr_data = []
+        
+        for sheet_name, df in all_sheets.items():
+            if 'measurement' in sheet_name.lower():
+                # Process measurement sheet
+                if not df.empty:
+                    # Extract relevant columns for measurements
+                    required_columns = ['item_no', 'description', 'unit', 'quantity', 'length', 'breadth', 'height']
+                    available_columns = [col for col in required_columns if col in df.columns]
+                    if available_columns:
+                        measurement_df = df[available_columns].copy()
+                        # Calculate totals if all dimension columns exist
+                        if all(col in measurement_df.columns for col in ['quantity', 'length', 'breadth', 'height']):
+                            measurement_df['total'] = (
+                                measurement_df['quantity'] * 
+                                measurement_df['length'] * 
+                                measurement_df['breadth'] * 
+                                measurement_df['height']
+                            )
+                        elif 'quantity' in measurement_df.columns:
+                            measurement_df['total'] = measurement_df['quantity']
+                        else:
+                            measurement_df['total'] = 1
+                        
+                        # Add to measurements
+                        measurement_data.append(measurement_df)
+            
+            elif 'abstract' in sheet_name.lower() and 'general' not in sheet_name.lower():
+                # Process abstract sheet
+                if not df.empty:
+                    # Extract relevant columns for abstract
+                    required_columns = ['description', 'unit', 'quantity', 'rate', 'amount']
+                    available_columns = [col for col in required_columns if col in df.columns]
+                    if available_columns:
+                        abstract_df = df[available_columns].copy()
+                        abstract_data.append(abstract_df)
+            
+            elif 'ssr' in sheet_name.lower() or 'schedule' in sheet_name.lower():
+                # Process SSR sheet
+                if not df.empty:
+                    # Extract relevant columns for SSR
+                    required_columns = ['code', 'description', 'category', 'unit', 'rate']
+                    available_columns = [col for col in required_columns if col in df.columns]
+                    if available_columns:
+                        ssr_df = df[available_columns].copy()
+                        ssr_data.append(ssr_df)
+        
+        # Update session state with imported data
+        if measurement_data:
+            # Combine all measurement data
+            combined_measurements = pd.concat(measurement_data, ignore_index=True)
+            # Add missing columns if needed
+            for col in ['id', 'item_no', 'description', 'quantity', 'length', 'breadth', 'height', 'unit', 'total', 'ssr_code']:
+                if col not in combined_measurements.columns:
+                    if col == 'id':
+                        combined_measurements[col] = range(1, len(combined_measurements) + 1)
+                    elif col in ['quantity', 'length', 'breadth', 'height', 'total']:
+                        combined_measurements[col] = 0.0
+                    else:
+                        combined_measurements[col] = ''
+            st.session_state.measurements = combined_measurements[st.session_state.measurements.columns]
+            st.session_state.counter = len(combined_measurements) + 1
+        
+        if abstract_data:
+            # Combine all abstract data
+            combined_abstracts = pd.concat(abstract_data, ignore_index=True)
+            # Add missing columns if needed
+            for col in ['id', 'description', 'quantity', 'unit', 'rate', 'amount']:
+                if col not in combined_abstracts.columns:
+                    if col == 'id':
+                        combined_abstracts[col] = [str(i) for i in range(1, len(combined_abstracts) + 1)]
+                    elif col in ['quantity', 'rate', 'amount']:
+                        combined_abstracts[col] = 0.0
+                    else:
+                        combined_abstracts[col] = ''
+            st.session_state.abstract_items = combined_abstracts[st.session_state.abstract_items.columns]
+        
+        if ssr_data:
+            # Combine all SSR data
+            combined_ssr = pd.concat(ssr_data, ignore_index=True)
+            # Add missing columns if needed
+            for col in ['code', 'description', 'category', 'unit', 'rate']:
+                if col not in combined_ssr.columns:
+                    if col in ['rate']:
+                        combined_ssr[col] = 0.0
+                    else:
+                        combined_ssr[col] = ''
+            st.session_state.ssr_items = combined_ssr
+        
+        return True
+        
+    except Exception as e:
+        st.error(f"Error importing complete estimate: {str(e)}")
+        return False
+
 # Enhanced Excel Import Functionality
 def find_estimate_files(pattern="att*.xlsx"):
     """Find estimate files in attached_assets folder matching pattern"""
     attached_assets_path = st.session_state.attached_assets_path
     if not os.path.exists(attached_assets_path):
+        st.warning(f"Attached assets folder not found: {attached_assets_path}")
         return []
     
     search_pattern = os.path.join(attached_assets_path, pattern)
     files = list(glob.glob(search_pattern))
+    st.info(f"Searching for pattern: {search_pattern}")
+    st.info(f"Found files: {files}")
     return sorted(files)
 
 def import_excel_measurements(file_path):
@@ -363,8 +484,23 @@ elif page == "📝 Measurement Sheets":
                     pd.DataFrame([new_measurement])
                 ], ignore_index=True)
                 
+                # Also add to abstract items
+                new_abstract_item = {
+                    'id': str(len(st.session_state.abstract_items) + 1),
+                    'description': description.strip(),
+                    'quantity': total,
+                    'unit': unit,
+                    'rate': get_default_rate_for_unit(unit),
+                    'amount': total * get_default_rate_for_unit(unit)
+                }
+                
+                st.session_state.abstract_items = pd.concat([
+                    st.session_state.abstract_items,
+                    pd.DataFrame([new_abstract_item])
+                ], ignore_index=True)
+                
                 st.session_state.counter += 1
-                st.success("✅ Measurement added successfully!")
+                st.success("✅ Measurement added successfully and reflected in abstract!")
                 st.rerun()
             elif submitted:
                 st.error("Please enter a description for the measurement.")
@@ -537,14 +673,14 @@ elif page == "📥 Import Excel Data":
         st.subheader("Import Measurement Data from Excel")
         
         # Check for files in attached_assets
-        measurement_files = find_estimate_files("*measurement*.xlsx")
+        measurement_files = find_estimate_files("*.xlsx")
         if measurement_files:
             selected_file = st.selectbox("Select measurement file:", measurement_files, 
                                        format_func=lambda x: os.path.basename(x))
             if st.button("Import Selected Measurement File"):
                 import_excel_measurements(selected_file)
         else:
-            st.info("No measurement files found in attached_assets folder")
+            st.info("No Excel files found in attached_assets folder")
         
         # Manual file upload
         uploaded_file = st.file_uploader("Or upload Excel file", type=['xlsx', 'xls'])
@@ -564,14 +700,14 @@ elif page == "📥 Import Excel Data":
         st.subheader("Import SSR Data from Excel")
         
         # Check for files in attached_assets
-        ssr_files = find_estimate_files("*ssr*.xlsx")
+        ssr_files = find_estimate_files("*.xlsx")
         if ssr_files:
             selected_file = st.selectbox("Select SSR file:", ssr_files, 
                                        format_func=lambda x: os.path.basename(x))
             if st.button("Import Selected SSR File"):
                 import_ssr_from_excel(selected_file)
         else:
-            st.info("No SSR files found in attached_assets folder")
+            st.info("No Excel files found in attached_assets folder")
         
         # Manual file upload
         uploaded_file = st.file_uploader("Or upload SSR Excel file", type=['xlsx', 'xls'], key="ssr_upload")
@@ -592,22 +728,36 @@ elif page == "📥 Import Excel Data":
         st.info("Import entire estimate with all sheets and data")
         
         # Check for files in attached_assets
-        estimate_files = find_estimate_files("att*.xlsx")
+        estimate_files = find_estimate_files("*.xlsx")
         if estimate_files:
             selected_file = st.selectbox("Select estimate file:", estimate_files, 
                                        format_func=lambda x: os.path.basename(x))
             if st.button("Import Selected Estimate"):
-                st.info("Complete estimate import functionality would be implemented here")
-                st.success(f"Would import complete estimate from: {os.path.basename(selected_file)}")
+                if import_complete_estimate(selected_file):
+                    st.success(f"✅ Complete estimate imported successfully from: {os.path.basename(selected_file)}")
+                    st.rerun()
+                else:
+                    st.error(f"❌ Failed to import complete estimate from: {os.path.basename(selected_file)}")
         else:
-            st.info("No estimate files found in attached_assets folder matching 'att*.xlsx'")
+            st.info("No Excel files found in attached_assets folder")
         
         # Manual file upload
         uploaded_file = st.file_uploader("Or upload complete estimate", type=['xlsx', 'xls'], key="estimate_upload")
         if uploaded_file is not None:
             if st.button("Import Uploaded Estimate"):
-                st.info("Complete estimate import functionality would be implemented here")
-                st.success(f"Would import complete estimate from: {uploaded_file.name}")
+                # Save to temporary file and import
+                import tempfile
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
+                    tmp.write(uploaded_file.getvalue())
+                    tmp_path = tmp.name
+                
+                if import_complete_estimate(tmp_path):
+                    st.success(f"✅ Complete estimate imported successfully from: {uploaded_file.name}")
+                    os.unlink(tmp_path)
+                    st.rerun()
+                else:
+                    st.error(f"❌ Failed to import complete estimate from: {uploaded_file.name}")
+                    os.unlink(tmp_path)
 
 # Abstract of Cost Page
 elif page == "💰 Abstract of Cost":

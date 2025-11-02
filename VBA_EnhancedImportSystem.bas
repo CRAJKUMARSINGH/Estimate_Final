@@ -12,6 +12,11 @@ Public Const ATTACHED_ASSETS_FOLDER As String = "attached_assets"
 Public Const ESTIMATE_FILE_PATTERN As String = "att*.xlsx"
 Public Const SSR_FILE_PATTERN As String = "*ssr*.xlsx"
 
+' Sheet naming constants
+Public Const GENERAL_ABSTRACT As String = "General Abstract"
+Public Const ABSTRACT_PREFIX As String = "Abstract of Cost"
+Public Const MEASUREMENT_PREFIX As String = "Measurement"
+
 ' ===============================================================================
 ' ENHANCED IMPORT FROM ATTACHED ASSETS FOLDER
 ' ===============================================================================
@@ -179,10 +184,11 @@ End Sub
 
 Sub AddNewLineToMeasurements()
     '
-    ' Add new line to selected measurement sheet
+    ' Add new line to selected measurement sheet and update abstract
     '
     
     Dim ws As Worksheet
+    Dim abstractWs As Worksheet
     Dim lastRow As Long
     Dim newRow As Long
     Dim description As String
@@ -190,6 +196,7 @@ Sub AddNewLineToMeasurements()
     Dim quantity As Double, length As Double, breadth As Double, height As Double
     Dim itemId As String
     Dim nextId As Long
+    Dim partName As String
     
     ' Check if active sheet is a measurement sheet
     Set ws = ActiveSheet
@@ -198,6 +205,10 @@ Sub AddNewLineToMeasurements()
                vbExclamation, "Invalid Sheet"
         Exit Sub
     End If
+    
+    ' Extract part name from sheet name
+    partName = Replace(ws.Name, MEASUREMENT_PREFIX, "")
+    partName = Trim(partName)
     
     ' Get next item ID
     nextId = GetNextItemId(ws)
@@ -241,31 +252,71 @@ Sub AddNewLineToMeasurements()
     Call UpdateSheetFormulas(ws)
     Call RebuildFormulasAndLinkages
     
+    ' Update corresponding abstract sheet
+    If SheetExists(ABSTRACT_PREFIX & " " & partName) Then
+        Set abstractWs = ThisWorkbook.Worksheets(ABSTRACT_PREFIX & " " & partName)
+        
+        ' Find next empty row in abstract sheet
+        Dim abstractRow As Long
+        abstractRow = FindNextEmptyRow(abstractWs)
+        
+        ' Add item to abstract sheet
+        abstractWs.Cells(abstractRow, 1).Value = abstractRow - 5 ' Serial number
+        abstractWs.Cells(abstractRow, 2).Value = description
+        abstractWs.Cells(abstractRow, 3).Value = unit
+        ' Link quantity to measurement sheet
+        abstractWs.Cells(abstractRow, 4).Formula = "='" & ws.Name & "'!H" & newRow
+        ' Set default rate (can be updated manually)
+        abstractWs.Cells(abstractRow, 5).Value = GetDefaultRateForUnit(unit)
+        ' Calculate amount
+        abstractWs.Cells(abstractRow, 6).Formula = "=IF(AND(D" & abstractRow & "<>0,E" & abstractRow & "<>0),D" & abstractRow & "*E" & abstractRow & ",0)"
+        
+        ' Update abstract sheet formulas
+        Call UpdateAbstractSheetFormulas(abstractWs)
+    End If
+    
+    ' Arrange sheets side by side for visibility
+    Call ArrangeSheetsSideBySide(partName)
+    
     Application.Calculation = xlCalculationAutomatic
     Application.ScreenUpdating = True
     Application.StatusBar = False
     
     MsgBox "New measurement item added successfully!" & vbCrLf & _
            "Item ID: " & itemId & vbCrLf & _
-           "Description: " & description, vbInformation, "Item Added"
+           "Description: " & description & vbCrLf & vbCrLf & _
+           "Abstract sheet has been updated and sheets are arranged side by side.", vbInformation, "Item Added"
 End Sub
 
 Sub UpdateAllMeasurements()
     '
-    ' Update all measurement calculations
+    ' Update all measurement calculations and corresponding abstracts
     '
     
     Dim ws As Worksheet
+    Dim abstractWs As Worksheet
     Dim updatedCount As Integer
+    Dim partName As String
     
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
-    Application.StatusBar = "Updating measurements..."
+    Application.StatusBar = "Updating measurements and abstracts..."
     
     updatedCount = 0
     For Each ws In ThisWorkbook.Worksheets
         If InStr(1, ws.Name, "Measurement", vbTextCompare) > 0 Then
+            ' Update measurement sheet formulas
             Call UpdateSheetFormulas(ws)
+            
+            ' Extract part name and update corresponding abstract
+            partName = Replace(ws.Name, MEASUREMENT_PREFIX, "")
+            partName = Trim(partName)
+            
+            If SheetExists(ABSTRACT_PREFIX & " " & partName) Then
+                Set abstractWs = ThisWorkbook.Worksheets(ABSTRACT_PREFIX & " " & partName)
+                Call UpdateAbstractSheetFormulas(abstractWs)
+            End If
+            
             updatedCount = updatedCount + 1
         End If
     Next ws
@@ -277,7 +328,7 @@ Sub UpdateAllMeasurements()
     Application.ScreenUpdating = True
     Application.StatusBar = False
     
-    MsgBox "Updated " & updatedCount & " measurement sheet(s)!" & vbCrLf & _
+    MsgBox "Updated " & updatedCount & " measurement sheet(s) and their abstracts!" & vbCrLf & _
            "All formulas and linkages have been recalculated.", _
            vbInformation, "Update Complete"
 End Sub
@@ -576,6 +627,18 @@ Sub ClearAllSheets()
     Application.DisplayAlerts = True
 End Sub
 
+Function SheetExists(sheetName As String) As Boolean
+    '
+    ' Check if worksheet exists in current workbook
+    '
+    
+    Dim ws As Worksheet
+    On Error Resume Next
+    Set ws = ThisWorkbook.Worksheets(sheetName)
+    SheetExists = Not ws Is Nothing
+    On Error GoTo 0
+End Function
+
 Function GetNextItemId(ws As Worksheet) As Long
     '
     ' Get next available item ID
@@ -598,6 +661,111 @@ Function GetNextItemId(ws As Worksheet) As Long
     
     GetNextItemId = maxId + 1
 End Function
+
+Function GetDefaultRateForUnit(unit As String) As Double
+    '
+    ' Get default rate based on unit type
+    '
+    
+    Select Case LCase(unit)
+        Case "cum"
+            GetDefaultRateForUnit = 3500
+        Case "sqm"
+            GetDefaultRateForUnit = 150
+        Case "rm"
+            GetDefaultRateForUnit = 100
+        Case "nos"
+            GetDefaultRateForUnit = 500
+        Case "kg"
+            GetDefaultRateForUnit = 60
+        Case "ton"
+            GetDefaultRateForUnit = 60000
+        Case "ltr"
+            GetDefaultRateForUnit = 50
+        Case "ls"
+            GetDefaultRateForUnit = 50000
+        Case Else
+            GetDefaultRateForUnit = 1000
+    End Select
+End Function
+
+Function FindNextEmptyRow(ws As Worksheet) As Long
+    '
+    ' Find next empty row for data insertion
+    '
+    
+    Dim lastRow As Long
+    Dim checkRow As Long
+    
+    ' Find last row with data in column B (description)
+    lastRow = ws.Cells(ws.Rows.Count, 2).End(xlUp).Row
+    
+    ' Look for empty row between data rows
+    For checkRow = 6 To lastRow
+        If ws.Cells(checkRow, 2).Value = "" Then
+            FindNextEmptyRow = checkRow
+            Exit Function
+        End If
+    Next checkRow
+    
+    ' If no empty row found, use next row after last data
+    If lastRow < 49 Then
+        FindNextEmptyRow = lastRow + 1
+    Else
+        FindNextEmptyRow = 49 ' Maximum data row
+    End If
+End Function
+
+Sub UpdateAbstractSheetFormulas(ws As Worksheet)
+    '
+    ' Update formulas in abstract sheet
+    '
+    
+    Dim lastRow As Long
+    Dim i As Long
+    
+    lastRow = ws.Cells(ws.Rows.Count, 2).End(xlUp).Row
+    
+    ' Update amount formulas for each data row
+    For i = 6 To lastRow
+        If ws.Cells(i, 2).Value <> "" Then
+            ws.Cells(i, 6).Formula = "=IF(AND(D" & i & "<>0,E" & i & "<>0),D" & i & "*E" & i & ",0)"
+        End If
+    Next i
+    
+    ' Update total row formula
+    ws.Cells(50, 6).Formula = "=SUM(F6:F49)"
+End Sub
+
+Sub ArrangeSheetsSideBySide(partName As String)
+    '
+    ' Arrange measurement and abstract sheets side by side
+    '
+    
+    Dim measurementWs As Worksheet
+    Dim abstractWs As Worksheet
+    Dim generalWs As Worksheet
+    
+    ' Activate the measurement sheet
+    If SheetExists(MEASUREMENT_PREFIX & " " & partName) Then
+        Set measurementWs = ThisWorkbook.Worksheets(MEASUREMENT_PREFIX & " " & partName)
+        measurementWs.Activate
+    End If
+    
+    ' Arrange windows side by side
+    Application.WindowState = xlMaximized
+    ActiveWindow.NewWindow
+    
+    ' Switch to abstract sheet in the new window
+    If SheetExists(ABSTRACT_PREFIX & " " & partName) Then
+        Set abstractWs = ThisWorkbook.Worksheets(ABSTRACT_PREFIX & " " & partName)
+        abstractWs.Activate
+    End If
+    
+    ' Arrange windows side by side
+    Application.Windows.Arrange ArrangeStyle:=xlHorizontal, _
+                              ActiveWorkbook:=True
+End Sub
 
 ' ===============================================================================
 ' INTERFACE INTEGRATION
