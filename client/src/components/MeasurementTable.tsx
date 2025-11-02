@@ -38,14 +38,14 @@ export default function MeasurementTable({
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead className="w-16 text-xs font-semibold uppercase tracking-wide">
-                Item No.
+              <TableHead className="w-20 text-xs font-semibold uppercase tracking-wide">
+                S.No.
               </TableHead>
-              <TableHead className="min-w-[200px] text-xs font-semibold uppercase tracking-wide">
-                Description
+              <TableHead className="min-w-[250px] text-xs font-semibold uppercase tracking-wide">
+                Particulars
               </TableHead>
-              <TableHead className="w-24 text-right text-xs font-semibold uppercase tracking-wide">
-                Qty
+              <TableHead className="w-20 text-right text-xs font-semibold uppercase tracking-wide">
+                Nos.
               </TableHead>
               <TableHead className="w-24 text-right text-xs font-semibold uppercase tracking-wide">
                 Length
@@ -56,11 +56,11 @@ export default function MeasurementTable({
               <TableHead className="w-24 text-right text-xs font-semibold uppercase tracking-wide">
                 Height
               </TableHead>
-              <TableHead className="w-20 text-xs font-semibold uppercase tracking-wide">
-                Unit
-              </TableHead>
               <TableHead className="w-28 text-right text-xs font-semibold uppercase tracking-wide">
-                Total
+                Qty.
+              </TableHead>
+              <TableHead className="w-24 text-xs font-semibold uppercase tracking-wide">
+                Units
               </TableHead>
               <TableHead className="w-16"></TableHead>
             </TableRow>
@@ -83,24 +83,24 @@ export default function MeasurementTable({
                     className={index % 2 === 0 ? "bg-background" : "bg-muted/20"}
                     data-testid={`row-measurement-${item.id}`}
                   >
-                    <TableCell className="font-medium">{item.itemNo}</TableCell>
+                    <TableCell className="font-medium text-center">{item.itemNo}</TableCell>
                     <TableCell>{item.description}</TableCell>
                     <TableCell className="text-right font-mono">
-                      {item.quantity.toFixed(2)}
+                      {item.quantity.toFixed(0)}
                     </TableCell>
                     <TableCell className="text-right font-mono">
-                      {item.length.toFixed(2)}
+                      {item.length > 0 ? item.length.toFixed(2) : "-"}
                     </TableCell>
                     <TableCell className="text-right font-mono">
-                      {item.breadth.toFixed(2)}
+                      {item.breadth > 0 ? item.breadth.toFixed(2) : "-"}
                     </TableCell>
                     <TableCell className="text-right font-mono">
-                      {item.height.toFixed(2)}
+                      {item.height > 0 ? item.height.toFixed(2) : "-"}
                     </TableCell>
-                    <TableCell>{item.unit}</TableCell>
                     <TableCell className="text-right font-mono font-medium">
-                      {item.total.toFixed(3)}
+                      {item.total.toFixed(2)}
                     </TableCell>
+                    <TableCell className="text-center">{item.unit}</TableCell>
                     <TableCell>
                       <Button
                         variant="ghost"
@@ -114,12 +114,13 @@ export default function MeasurementTable({
                   </TableRow>
                 ))}
                 <TableRow className="bg-muted font-semibold">
-                  <TableCell colSpan={7} className="text-right">
-                    Grand Total:
+                  <TableCell colSpan={6} className="text-right uppercase tracking-wide">
+                    TOTAL =
                   </TableCell>
                   <TableCell className="text-right font-mono" data-testid="text-grand-total">
-                    {grandTotal.toFixed(3)}
+                    {grandTotal.toFixed(2)}
                   </TableCell>
+                  <TableCell className="text-center">{items[0]?.unit || ""}</TableCell>
                   <TableCell></TableCell>
                 </TableRow>
               </>

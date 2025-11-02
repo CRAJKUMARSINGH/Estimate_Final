@@ -26,7 +26,7 @@ interface MeasurementEntryFormProps {
   onAddRow: (row: MeasurementRow) => void;
 }
 
-const units = ["m", "m²", "m³", "cum", "sqm", "nos", "kg", "ton", "ltr"];
+const units = ["RM", "Cum", "Sqm", "Nos", "Kg", "Ton", "Ltr", "LS"];
 
 export default function MeasurementEntryForm({
   onAddRow,
@@ -38,7 +38,7 @@ export default function MeasurementEntryForm({
     length: "",
     breadth: "",
     height: "",
-    unit: "m",
+    unit: "RM",
   });
 
   const calculateTotal = () => {
@@ -59,7 +59,7 @@ export default function MeasurementEntryForm({
       length: "",
       breadth: "",
       height: "",
-      unit: "m",
+      unit: "RM",
     });
   };
 
@@ -69,7 +69,7 @@ export default function MeasurementEntryForm({
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           <div className="space-y-2">
             <Label htmlFor="itemNo" className="text-xs font-medium uppercase tracking-wider">
-              Item No.
+              S.No.
             </Label>
             <Input
               id="itemNo"
@@ -85,7 +85,7 @@ export default function MeasurementEntryForm({
 
           <div className="md:col-span-2 space-y-2">
             <Label htmlFor="description" className="text-xs font-medium uppercase tracking-wider">
-              Description
+              Particulars
             </Label>
             <Input
               id="description"
@@ -93,7 +93,7 @@ export default function MeasurementEntryForm({
               onChange={(e) =>
                 setFormData({ ...formData, description: e.target.value })
               }
-              placeholder="Earth work excavation..."
+              placeholder="Main walls 380 mm th.in Y Direction..."
               required
               data-testid="input-description"
             />
@@ -101,12 +101,12 @@ export default function MeasurementEntryForm({
 
           <div className="space-y-2">
             <Label htmlFor="quantity" className="text-xs font-medium uppercase tracking-wider">
-              Quantity
+              Nos.
             </Label>
             <Input
               id="quantity"
               type="number"
-              step="0.01"
+              step="1"
               value={formData.quantity}
               onChange={(e) =>
                 setFormData({ ...formData, quantity: e.target.value })
@@ -175,7 +175,7 @@ export default function MeasurementEntryForm({
 
           <div className="space-y-2">
             <Label htmlFor="unit" className="text-xs font-medium uppercase tracking-wider">
-              Unit
+              Units
             </Label>
             <Select
               value={formData.unit}
@@ -189,7 +189,7 @@ export default function MeasurementEntryForm({
               <SelectContent>
                 {units.map((unit) => (
                   <SelectItem key={unit} value={unit}>
-                    {unit}
+                    {unit.toUpperCase()}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -198,7 +198,7 @@ export default function MeasurementEntryForm({
 
           <div className="space-y-2">
             <Label className="text-xs font-medium uppercase tracking-wider">
-              Total
+              Qty.
             </Label>
             <Input
               value={calculateTotal()}

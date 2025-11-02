@@ -18,12 +18,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
+import SSRImportDialog, { ImportedSSRItem } from "@/components/SSRImportDialog";
 
 export default function SSRDatabase() {
   const [searchQuery, setSearchQuery] = useState("");
   const [category, setCategory] = useState("all");
 
-  const ssrItems = [
+  const [ssrItems, setSSRItems] = useState([
     {
       code: "2.1.1",
       description: "Earth work excavation in foundation by manual means",
@@ -80,7 +81,18 @@ export default function SSRDatabase() {
       rate: 285.00,
       effectiveDate: "Jan 2024",
     },
-  ];
+  ]);
+
+  const handleImportComplete = (items: ImportedSSRItem[]) => {
+    const newItems = items.map((item, index) => ({
+      ...item,
+      category: item.category || "Imported Items",
+      effectiveDate: item.effectiveDate || "Jan 2024",
+    }));
+    
+    setSSRItems([...ssrItems, ...newItems]);
+    console.log(`Imported ${items.length} SSR items`);
+  };
 
   const filteredItems = ssrItems.filter((item) => {
     const matchesSearch =
@@ -94,14 +106,17 @@ export default function SSRDatabase() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Database className="h-6 w-6 text-primary" />
-        <div>
-          <h1 className="text-2xl font-semibold">SSR Database</h1>
-          <p className="text-sm text-muted-foreground">
-            Standard Schedule of Rates - Browse and search
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Database className="h-6 w-6 text-primary" />
+          <div>
+            <h1 className="text-2xl font-semibold">SSR Database</h1>
+            <p className="text-sm text-muted-foreground">
+              Standard Schedule of Rates - Browse and search
+            </p>
+          </div>
         </div>
+        <SSRImportDialog onImportComplete={handleImportComplete} />
       </div>
 
       <Card className="p-4">
