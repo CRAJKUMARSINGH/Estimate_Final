@@ -1,0 +1,11 @@
+code,description,unit,rate,category
+1.1.1,Earth work excavation in foundation trenches,Cum,245.50,Earth Work
+2.1.1,Cement concrete 1:2:4 using 20mm aggregate,Cum,4850.00,Concrete Work
+3.1.1,Brick work in superstructure using common burnt clay bricks,Cum,5200.00,Masonry Work
+4.1.1,12mm thick cement plaster 1:4,Sqm,125.00,Plastering
+5.1.1,Painting with acrylic emulsion paint,Sqm,45.00,Painting
+6.1.1,PVC pipes 110mm dia for drainage,RM,285.00,Plumbing
+7.1.1,Steel reinforcement bars,Kg,65.00,Steel Work
+8.1.1,Waterproofing membrane,Sqm,180.00,Waterproofing
+9.1.1,Flooring tiles 600x600mm,Sqm,320.00,Flooring
+10.1.1,AC sheet roofing,Sqm,285.00,Roofing
