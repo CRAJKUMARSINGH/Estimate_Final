@@ -37,6 +37,7 @@ import logging
 from functools import lru_cache
 import openpyxl
 from openpyxl import load_workbook
+import base64
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -274,6 +275,76 @@ class UnifiedDatabase:
                         row.get('quantity', 0), row.get('rate', 0),
                         row.get('amount', 0)
                     ))
+
+    def load_project(self, project_id: int) -> Optional[Dict]:
+        """Load project with measurements and abstracts grouped by sheet"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            project_df = pd.read_sql_query(
+                "SELECT * FROM projects WHERE id = ?", conn, params=(project_id,)
+            )
+            if project_df.empty:
+                conn.close()
+                return None
+            project_info = project_df.iloc[0].to_dict()
+            measurements_df = pd.read_sql_query(
+                "SELECT * FROM measurements WHERE project_id = ?", conn, params=(project_id,)
+            )
+            abstracts_df = pd.read_sql_query(
+                "SELECT * FROM abstracts WHERE project_id = ?", conn, params=(project_id,)
+            )
+            conn.close()
+            measurements_by_sheet = {}
+            abstracts_by_sheet = {}
+            if not measurements_df.empty:
+                for sheet in measurements_df['sheet_name'].unique():
+                    measurements_by_sheet[sheet] = measurements_df[measurements_df['sheet_name'] == sheet].drop(columns=['project_id'])
+            if not abstracts_df.empty:
+                for sheet in abstracts_df['sheet_name'].unique():
+                    abstracts_by_sheet[sheet] = abstracts_df[abstracts_df['sheet_name'] == sheet].drop(columns=['project_id'])
+            return {
+                'project_info': project_info,
+                'measurements': measurements_by_sheet,
+                'abstracts': abstracts_by_sheet,
+            }
+        except Exception as e:
+            logger.error(f"Error loading project: {e}")
+            return None
+
+    def update_ssr_items(self, ssr_df: pd.DataFrame) -> bool:
+        """Replace SSR items with provided DataFrame"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM ssr_items")
+            for _, row in ssr_df.iterrows():
+                cursor.execute(
+                    """
+                    INSERT INTO ssr_items (code, description, category, unit, rate, last_updated)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        row.get('code', ''), row.get('description', ''), row.get('category', ''),
+                        row.get('unit', ''), float(row.get('rate', 0) or 0), datetime.now().isoformat(),
+                    ),
+                )
+            conn.commit()
+            conn.close()
+            return True
+        except Exception as e:
+            logger.error(f"Error updating SSR items: {e}")
+            return False
+
+    def load_ssr_items(self) -> pd.DataFrame:
+        """Load SSR items as DataFrame"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            df = pd.read_sql_query("SELECT code, description, category, unit, rate FROM ssr_items ORDER BY code", conn)
+            conn.close()
+            return df
+        except Exception as e:
+            logger.error(f"Error loading SSR items: {e}")
+            return pd.DataFrame(columns=SSR_COLUMNS)
     
     def list_projects(self) -> pd.DataFrame:
         """List all projects"""
@@ -828,8 +899,30 @@ def create_sidebar():
         selected_project = st.sidebar.selectbox("Select Project", project_names)
         
         if selected_project != "New Project" and st.sidebar.button("📂 Load Project"):
-            # Load selected project
-            st.success(f"Loading project: {selected_project}")
+            # Load selected project from database
+            sel_row = projects[projects['name'] == selected_project].iloc[0]
+            loaded = st.session_state.database.load_project(int(sel_row['id']))
+            if loaded:
+                # Update session state
+                st.session_state.project_settings.update({
+                    'project_name': loaded['project_info'].get('name', selected_project),
+                    'project_location': loaded['project_info'].get('location', ''),
+                    'current_project_id': loaded['project_info'].get('id'),
+                })
+                # Reset existing
+                st.session_state.measurement_sheets = {k: v for k, v in st.session_state.measurement_sheets.items()}
+                st.session_state.abstract_sheets = {k: v for k, v in st.session_state.abstract_sheets.items()}
+                # Apply loaded sheets
+                if loaded['measurements']:
+                    for sheet, df in loaded['measurements'].items():
+                        st.session_state.measurement_sheets[sheet] = df
+                if loaded['abstracts']:
+                    for sheet, df in loaded['abstracts'].items():
+                        st.session_state.abstract_sheets[sheet] = df
+                st.success(f"✅ Loaded project: {selected_project}")
+                st.rerun()
+            else:
+                st.error("❌ Failed to load project")
     
     # Main navigation
     page = st.sidebar.selectbox("Select Module", [
@@ -838,6 +931,7 @@ def create_sidebar():
         "💰 Abstract of Cost",
         "📝 Measurement Sheets",
         "📚 SSR Database",
+        "🧩 Templates",
         "📥 Import Excel Data",
         "📊 Analytics & Reports",
         "🔧 System Tools"
@@ -1064,6 +1158,68 @@ def show_measurements():
                     st.success("✅ Measurement added successfully!")
                     st.rerun()
 
+def show_abstracts():
+    """Show abstract of cost sheets interface"""
+    st.title("💰 Abstract of Cost")
+    
+    sheet_names = list(st.session_state.abstract_sheets.keys())
+    selected_sheet = st.selectbox("Select Sheet", sheet_names)
+    
+    if selected_sheet:
+        st.subheader(f"📋 {selected_sheet} Abstract")
+        abstracts_df = st.session_state.abstract_sheets[selected_sheet]
+        
+        if not abstracts_df.empty:
+            edited_df = st.data_editor(
+                abstracts_df,
+                use_container_width=True,
+                num_rows="dynamic",
+                column_config={
+                    "quantity": st.column_config.NumberColumn("Quantity", format="%.3f"),
+                    "rate": st.column_config.NumberColumn("Rate", format="%.2f"),
+                    "amount": st.column_config.NumberColumn("Amount", format="%.2f"),
+                },
+            )
+            
+            if not edited_df.equals(abstracts_df):
+                updated_df = CalculationEngine.update_abstract_amounts(edited_df)
+                st.session_state.abstract_sheets[selected_sheet] = updated_df
+                st.rerun()
+            
+            total_amount = abstracts_df['amount'].sum() if 'amount' in abstracts_df else 0
+            st.metric("Sheet Total", f"₹{total_amount:,.2f}")
+        else:
+            st.info("No abstract items in this sheet. Import Excel data or add items manually.")
+        
+        with st.expander("➕ Add Abstract Item"):
+            with st.form("add_abstract"):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    ssr_code = st.text_input("SSR/BSR Code", value="")
+                    description = st.text_area("Description")
+                    unit = st.text_input("Unit", value="")
+                
+                with col2:
+                    quantity = st.number_input("Quantity", value=0.0, min_value=0.0)
+                    rate = st.number_input("Rate", value=0.0, min_value=0.0)
+                    
+                if st.form_submit_button("➕ Add Item"):
+                    amount = quantity * rate
+                    new_item = {
+                        'id': len(abstracts_df) + 1,
+                        'ssr_code': ssr_code,
+                        'description': description,
+                        'unit': unit,
+                        'quantity': quantity,
+                        'rate': rate,
+                        'amount': amount,
+                    }
+                    new_df = pd.concat([abstracts_df, pd.DataFrame([new_item])], ignore_index=True)
+                    st.session_state.abstract_sheets[selected_sheet] = new_df
+                    st.success("✅ Abstract item added successfully!")
+                    st.rerun()
+
 def show_analytics():
     """Show analytics and reporting"""
     st.title("📊 Analytics & Reports")
@@ -1121,6 +1277,90 @@ def show_analytics():
     else:
         st.info("No cost data available. Import Excel data or add abstracts to see analytics.")
 
+def show_general_abstract():
+    """Basic General Abstract page for project metadata and part totals"""
+    st.title("📋 General Abstract")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.session_state.project_settings['project_name'] = st.text_input(
+            "Project Name", value=st.session_state.project_settings.get('project_name', 'New Construction Project')
+        )
+        st.session_state.project_settings['project_location'] = st.text_input(
+            "Project Location", value=st.session_state.project_settings.get('project_location', '')
+        )
+    with col2:
+        st.write("Current Project ID:", st.session_state.project_settings.get('current_project_id') or "—")
+        total_cost = sum(
+            df['amount'].sum() if not df.empty else 0 for df in st.session_state.abstract_sheets.values()
+        )
+        st.metric("Grand Total", f"₹{total_cost:,.2f}")
+    st.subheader("Part-wise totals")
+    rows = []
+    for sheet_name, df in st.session_state.abstract_sheets.items():
+        amount = df['amount'].sum() if not df.empty and 'amount' in df else 0
+        rows.append({"Part": sheet_name, "Amount": amount})
+    if rows:
+        summary_df = pd.DataFrame(rows)
+        st.dataframe(summary_df, use_container_width=True, hide_index=True)
+
+def show_templates():
+    """Templates module: save current as template and apply templates"""
+    st.title("🧩 Templates")
+    tab1, tab2 = st.tabs(["Save Template", "Apply Template"])
+    with tab1:
+        name = st.text_input("Template Name")
+        description = st.text_area("Description", height=80)
+        category = st.text_input("Category", value="General")
+        if st.button("💾 Save Current As Template", type="primary"):
+            try:
+                conn = sqlite3.connect(st.session_state.database.db_path)
+                cursor = conn.cursor()
+                template_payload = {
+                    'measurement_sheets': {k: v.to_dict(orient='records') for k, v in st.session_state.measurement_sheets.items()},
+                    'abstract_sheets': {k: v.to_dict(orient='records') for k, v in st.session_state.abstract_sheets.items()},
+                }
+                cursor.execute(
+                    """
+                    INSERT INTO templates (name, description, category, template_data, created_date)
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (name, description, category, json.dumps(template_payload), datetime.now().isoformat()),
+                )
+                conn.commit(); conn.close()
+                st.success("✅ Template saved")
+            except Exception as e:
+                st.error(f"❌ Failed to save template: {e}")
+    with tab2:
+        try:
+            conn = sqlite3.connect(st.session_state.database.db_path)
+            templates_df = pd.read_sql_query("SELECT id, name, category, created_date FROM templates ORDER BY created_date DESC", conn)
+            conn.close()
+        except Exception:
+            templates_df = pd.DataFrame(columns=["id","name","category","created_date"])
+        if templates_df.empty:
+            st.info("No templates available.")
+        else:
+            st.dataframe(templates_df, use_container_width=True, hide_index=True)
+            ids = templates_df['id'].tolist()
+            sel = st.selectbox("Select Template ID", ids) if ids else None
+            if sel and st.button("📥 Apply Template to Current Project"):
+                try:
+                    conn = sqlite3.connect(st.session_state.database.db_path)
+                    row = pd.read_sql_query("SELECT template_data FROM templates WHERE id = ?", conn, params=(int(sel),))
+                    conn.close()
+                    payload = json.loads(row.iloc[0]['template_data']) if not row.empty else {}
+                    ms = payload.get('measurement_sheets', {})
+                    abs_ = payload.get('abstract_sheets', {})
+                    # Apply
+                    for k, v in ms.items():
+                        st.session_state.measurement_sheets[k] = pd.DataFrame(v)
+                    for k, v in abs_.items():
+                        st.session_state.abstract_sheets[k] = pd.DataFrame(v)
+                    st.success("✅ Template applied")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Failed to apply template: {e}")
+
 # =============================================================================
 # MAIN APPLICATION
 # =============================================================================
@@ -1146,14 +1386,105 @@ def main():
     elif page == "📊 Analytics & Reports":
         show_analytics()
     elif page == "📋 General Abstract":
-        st.title("📋 General Abstract")
-        st.info("🚧 General Abstract module - Coming soon in next update")
+        show_general_abstract()
     elif page == "💰 Abstract of Cost":
-        st.title("💰 Abstract of Cost")
-        st.info("🚧 Abstract of Cost module - Coming soon in next update")
+        show_abstracts()
     elif page == "📚 SSR Database":
         st.title("📚 SSR Database")
         st.dataframe(st.session_state.ssr_items, use_container_width=True, hide_index=True)
+        # Upload SSR file (CSV/XLSX)
+        with st.expander("📥 Upload SSR/BSR File"):
+            uploaded = st.file_uploader("Upload SSR/BSR file (CSV or Excel)", type=["csv", "xlsx"])
+            if uploaded is not None:
+                try:
+                    if uploaded.name.lower().endswith('.csv'):
+                        df = pd.read_csv(uploaded)
+                    else:
+                        df = pd.read_excel(uploaded)
+                    # Normalize columns
+                    cols_map = {c.lower().strip(): c for c in df.columns}
+                    required = ['code','description','category','unit','rate']
+                    normalized = {}
+                    for r in required:
+                        # find matching column (case-insensitive contains)
+                        match = next((orig for low, orig in cols_map.items() if r in low), None)
+                        if match:
+                            normalized[r] = df[match]
+                        else:
+                            normalized[r] = pd.Series(["" for _ in range(len(df))]) if r != 'rate' else pd.Series([0 for _ in range(len(df))])
+                    st.session_state.ssr_items = pd.DataFrame(normalized)
+                    st.success("✅ SSR loaded into session. Review above and Save to DB if desired.")
+                except Exception as e:
+                    st.error(f"❌ Failed to parse SSR file: {e}")
+
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            if st.button("⬇️ Load SSR from DB"):
+                ssr_df = st.session_state.database.load_ssr_items()
+                if not ssr_df.empty:
+                    st.session_state.ssr_items = ssr_df
+                    st.success("✅ Loaded SSR from database")
+                else:
+                    st.info("No SSR items in database.")
+        with col2:
+            if st.button("⬆️ Save SSR to DB"):
+                ok = st.session_state.database.update_ssr_items(st.session_state.ssr_items)
+                if ok:
+                    st.success("✅ SSR saved to database")
+                else:
+                    st.error("❌ Failed to save SSR")
+        with col3:
+            # Generate PDF for item 5
+            def _generate_ssr_item_pdf(item_row: pd.Series) -> bytes:
+                try:
+                    from reportlab.lib.pagesizes import A4
+                    from reportlab.pdfgen import canvas
+                    from reportlab.lib.units import cm
+                except Exception:
+                    return b""
+                buf = io.BytesIO()
+                c = canvas.Canvas(buf, pagesize=A4)
+                width, height = A4
+                c.setFont("Helvetica-Bold", 14)
+                c.drawString(2*cm, height-2*cm, "SSR Item Certificate")
+                c.setFont("Helvetica", 11)
+                y = height - 3*cm
+                lines = [
+                    f"Code: {item_row.get('code','')}",
+                    f"Description: {item_row.get('description','')}",
+                    f"Category: {item_row.get('category','')}",
+                    f"Unit: {item_row.get('unit','')}",
+                    f"Rate: {item_row.get('rate','')}",
+                    f"Generated: {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+                ]
+                for line in lines:
+                    c.drawString(2*cm, y, str(line))
+                    y -= 1*cm
+                c.showPage()
+                c.save()
+                pdf = buf.getvalue()
+                buf.close()
+                return pdf
+
+            if st.button("📄 Generate PDF for SSR Item 5"):
+                df = st.session_state.ssr_items
+                if df is not None and len(df) >= 5:
+                    row = df.iloc[4]  # 0-based index
+                    pdf_bytes = _generate_ssr_item_pdf(row)
+                    if pdf_bytes:
+                        # Save to session and provide download + inline preview
+                        st.session_state['ssr_item_5_pdf'] = pdf_bytes
+                        st.download_button("⬇️ Download SSR Item 5 PDF", data=pdf_bytes, file_name="ssr_item_5.pdf", mime="application/pdf")
+                        with st.expander("👁️ Preview SSR Item 5 PDF"):
+                            b64 = base64.b64encode(pdf_bytes).decode('utf-8')
+                            pdf_html = f'<iframe src="data:application/pdf;base64,{b64}" width="100%" height="600px" type="application/pdf"></iframe>'
+                            st.markdown(pdf_html, unsafe_allow_html=True)
+                    else:
+                        st.warning("Install 'reportlab' to enable PDF export: pip install reportlab")
+                else:
+                    st.info("Need at least 5 SSR items loaded to export item 5.")
+        with col4:
+            st.write("")
     elif page == "🔧 System Tools":
         st.title("🔧 System Tools")
         
@@ -1188,6 +1519,8 @@ def main():
                 initialize_session_state()
                 st.success("✅ All data cleared!")
                 st.rerun()
+    elif page == "🧩 Templates":
+        show_templates()
 
 # =============================================================================
 # APPLICATION ENTRY POINT

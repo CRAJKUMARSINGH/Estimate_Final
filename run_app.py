@@ -39,7 +39,7 @@ def run_streamlit_app():
         # Run streamlit
         subprocess.run([
             sys.executable, "-m", "streamlit", "run", 
-            "streamlit_estimation_app.py",
+            "app.py",
             "--server.port", "8501"
         ])
     except KeyboardInterrupt:
