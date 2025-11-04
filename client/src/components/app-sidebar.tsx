@@ -1,4 +1,4 @@
-import { Home, FileSpreadsheet, Database, FileText, Settings } from "lucide-react";
+import { Home, FileSpreadsheet, Database, FileText, Settings, Calculator, Upload, Building, Ruler, TrendingUp, Zap } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -39,6 +39,39 @@ const menuItems = [
   },
 ];
 
+const estimatorItems = [
+  {
+    title: "GEstimator",
+    url: "/estimator",
+    icon: Calculator,
+  },
+  {
+    title: "Excel Import",
+    url: "/estimator/import",
+    icon: Upload,
+  },
+  {
+    title: "Projects",
+    url: "/estimator/projects",
+    icon: Building,
+  },
+  {
+    title: "Measurements",
+    url: "/estimator/measurements",
+    icon: Ruler,
+  },
+  {
+    title: "Rate Analysis",
+    url: "/estimator/analysis",
+    icon: TrendingUp,
+  },
+  {
+    title: "Dynamic Templates",
+    url: "/estimator/templates/dynamic",
+    icon: Zap,
+  },
+];
+
 export function AppSidebar() {
   const [location] = useLocation();
 
@@ -52,6 +85,24 @@ export function AppSidebar() {
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location === item.url}>
+                    <Link href={item.url} data-testid={`link-${item.title.toLowerCase().replace(/\s/g, '-')}`}>
+                      <item.icon className="h-5 w-5" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        
+        <SidebarGroup>
+          <SidebarGroupLabel>GEstimator Pro</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {estimatorItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={location === item.url || location.startsWith(item.url)}>
                     <Link href={item.url} data-testid={`link-${item.title.toLowerCase().replace(/\s/g, '-')}`}>
                       <item.icon className="h-5 w-5" />
                       <span>{item.title}</span>

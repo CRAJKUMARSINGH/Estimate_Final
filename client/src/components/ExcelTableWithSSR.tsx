@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, Calculator } from "lucide-react";
+import { Plus, Trash2, Calculator, ChevronRight, ChevronDown } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -12,8 +12,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { SSRItemSelectorConnected } from "./SSRItemSelectorConnected";
-import { SSRItem } from "@shared/schema";
+import { SSRItem, HierarchicalSSRItem } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+import { useParams } from "wouter";
 
 interface TableRowData {
   serial: number;
@@ -23,11 +26,23 @@ interface TableRowData {
   rate: string;
   amount: string;
   isSSRItem?: boolean;
+  hierarchy?: string[]; // For hierarchical items
+  level?: number; // For hierarchical items
 }
 
 export function ExcelTableWithSSR() {
   const { toast } = useToast();
   const [showSSRSelector, setShowSSRSelector] = useState(false);
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  const params = useParams();
+  const estimateId = params.id as string;
+
+  const { data: estimate, isLoading, isError } = useQuery({
+    queryKey: [`/api/estimates/${estimateId}`],
+    queryFn: () => api.getEstimate(estimateId),
+    enabled: !!estimateId,
+  });
+
   const [tableData, setTableData] = useState<TableRowData[]>([
     {
       serial: 1,
@@ -47,24 +62,64 @@ export function ExcelTableWithSSR() {
     },
   ]);
 
+  if (isLoading) {
+    return <div>Loading estimate data...</div>;
+  }
+
+  if (isError) {
+    return <div>Error loading estimate data</div>;
+  }
+
+  const toggleRowExpansion = (serial: number) => {
+    setExpandedRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(serial)) {
+        newSet.delete(serial);
+      } else {
+        newSet.add(serial);
+      }
+      return newSet;
+    });
+  };
+
   const handleSSRItemSelected = (item: SSRItem) => {
     console.log('SSR item selected:', item);
     
     // Get next serial number
     const nextSerial = Math.max(...tableData.map(r => r.serial), 0) + 1;
     
-    // Add the SSR item to the table
-    const newRow: TableRowData = {
-      serial: nextSerial,
-      description: item.description,
-      unit: item.unit,
-      quantity: "",
-      rate: parseFloat(item.rate).toFixed(2),
-      amount: "",
-      isSSRItem: true,
-    };
-    
-    setTableData([...tableData, newRow]);
+    // Check if this is a hierarchical item
+    if ('level' in item && 'hierarchy' in item) {
+      const hierarchicalItem = item as HierarchicalSSRItem;
+      
+      // Add the SSR item to the table with hierarchical information
+      const newRow: TableRowData = {
+        serial: nextSerial,
+        description: hierarchicalItem.fullDescription,
+        unit: hierarchicalItem.unit,
+        quantity: "",
+        rate: parseFloat(hierarchicalItem.rate).toFixed(2),
+        amount: "",
+        isSSRItem: true,
+        hierarchy: hierarchicalItem.hierarchy,
+        level: hierarchicalItem.level,
+      };
+      
+      setTableData([...tableData, newRow]);
+    } else {
+      // Add regular SSR item
+      const newRow: TableRowData = {
+        serial: nextSerial,
+        description: item.description,
+        unit: item.unit,
+        quantity: "",
+        rate: parseFloat(item.rate).toFixed(2),
+        amount: "",
+        isSSRItem: true,
+      };
+      
+      setTableData([...tableData, newRow]);
+    }
     
     toast({
       title: "SSR Item Added",
@@ -133,6 +188,7 @@ export function ExcelTableWithSSR() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12"></TableHead>
                   <TableHead className="w-16">S.No</TableHead>
                   <TableHead className="min-w-[300px]">Description</TableHead>
                   <TableHead className="w-20">Unit</TableHead>
@@ -145,15 +201,53 @@ export function ExcelTableWithSSR() {
               <TableBody>
                 {tableData.map((row) => (
                   <TableRow key={row.serial} className={row.isSSRItem ? 'bg-accent/20' : ''}>
+                    <TableCell>
+                      {row.hierarchy && row.hierarchy.length > 1 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleRowExpansion(row.serial)}
+                          className="h-6 w-6 p-0"
+                        >
+                          {expandedRows.has(row.serial) ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )}
+                    </TableCell>
                     <TableCell className="text-center font-mono text-sm">
                       {row.serial}
                     </TableCell>
                     <TableCell>
-                      <Input
-                        defaultValue={row.description}
-                        className="border-0 p-0 h-auto focus-visible:ring-0"
-                        data-testid={`input-description-${row.serial}`}
-                      />
+                      <div className="flex items-start">
+                        {row.level !== undefined && row.level > 0 && (
+                          <div className="flex gap-1 mr-2 mt-1">
+                            {Array.from({ length: row.level }).map((_, i) => (
+                              <div key={i} className="w-3 h-3 border-r border-b border-gray-400"></div>
+                            ))}
+                          </div>
+                        )}
+                        <Input
+                          defaultValue={row.description}
+                          className="border-0 p-0 h-auto focus-visible:ring-0"
+                          data-testid={`input-description-${row.serial}`}
+                        />
+                      </div>
+                      {expandedRows.has(row.serial) && row.hierarchy && row.hierarchy.length > 1 && (
+                        <div className="text-xs text-muted-foreground mt-1 ml-4">
+                          <div className="font-medium">Hierarchy:</div>
+                          <div className="ml-2">
+                            {row.hierarchy.map((desc, index) => (
+                              <div key={index} className="flex items-center">
+                                <div className="w-3 h-3 border-r border-b border-gray-400 mr-1"></div>
+                                {desc}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Input
@@ -194,7 +288,7 @@ export function ExcelTableWithSSR() {
                   </TableRow>
                 ))}
                 <TableRow className="font-semibold bg-muted">
-                  <TableCell colSpan={5} className="text-right">
+                  <TableCell colSpan={6} className="text-right">
                     Total
                   </TableCell>
                   <TableCell className="text-right font-mono">

@@ -43,6 +43,7 @@ export function UploadEstimate() {
       setEngineerName("");
       setReferenceNumber("");
       
+      // Navigate to the estimate editor page with the new estimate ID
       navigate(`/estimate/${data.estimate.id}`);
     },
     onError: (error: Error) => {

@@ -1,11 +1,30 @@
 import { Button } from "@/components/ui/button";
 import { Save, Download, ArrowLeft } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useParams } from "wouter";
 import { EstimateSheetTabs } from "@/components/EstimateSheetTabs";
 import { ExcelTableWithSSR } from "@/components/ExcelTableWithSSR";
 import { ProjectMetadataForm } from "@/components/ProjectMetadataForm";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 
 export default function EstimateEditor() {
+  const params = useParams();
+  const estimateId = params.id as string;
+
+  const { data: estimate, isLoading, isError } = useQuery({
+    queryKey: [`/api/estimates/${estimateId}`],
+    queryFn: () => api.getEstimate(estimateId),
+    enabled: !!estimateId,
+  });
+
+  if (isLoading) {
+    return <div>Loading estimate...</div>;
+  }
+
+  if (isError || !estimate) {
+    return <div>Error loading estimate</div>;
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -16,9 +35,9 @@ export default function EstimateEditor() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-semibold">Highway Construction Phase 1</h1>
+            <h1 className="text-2xl font-semibold">{estimate.projectName}</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              EST-2025-001 • Mumbai, Maharashtra
+              {estimate.referenceNumber} • {estimate.location}
             </p>
           </div>
         </div>

@@ -11,6 +11,14 @@ import Dashboard from "@/pages/dashboard";
 import Estimates from "@/pages/estimates";
 import EstimateEditor from "@/pages/estimate-editor";
 import SSRDatabase from "@/pages/ssr-database";
+import EstimatorDashboard from "@/pages/estimator-dashboard";
+import ExcelImporter from "@/components/ExcelImporter";
+import EstimatorProjects from "@/pages/estimator-projects";
+import MeasurementEditor from "@/components/MeasurementEditor";
+import AnalysisEditor from "@/components/AnalysisEditor";
+import DynamicTemplateEditor from "@/components/DynamicTemplateEditor";
+import EnhancedDashboard from "@/pages/enhanced-dashboard";
+import EnhancedSSRDatabase from "@/components/EnhancedSSRDatabase";
 
 function Router() {
   return (
@@ -21,6 +29,14 @@ function Router() {
       <Route path="/ssr" component={SSRDatabase} />
       <Route path="/templates" component={Dashboard} />
       <Route path="/settings" component={Dashboard} />
+      <Route path="/estimator" component={EstimatorDashboard} />
+      <Route path="/estimator/import" component={ExcelImporter} />
+      <Route path="/estimator/projects" component={EstimatorProjects} />
+      <Route path="/estimator/measurements" component={() => <MeasurementEditor scheduleItemId="demo" scheduleItemCode="DEMO" scheduleItemDescription="Demo Item" />} />
+      <Route path="/estimator/analysis" component={() => <AnalysisEditor scheduleItemId="demo" scheduleItemCode="DEMO" scheduleItemDescription="Demo Item" />} />
+      <Route path="/estimator/templates/dynamic" component={DynamicTemplateEditor} />
+      <Route path="/enhanced" component={EnhancedDashboard} />
+      <Route path="/ssr/enhanced" component={EnhancedSSRDatabase} />
       <Route component={NotFound} />
     </Switch>
   );

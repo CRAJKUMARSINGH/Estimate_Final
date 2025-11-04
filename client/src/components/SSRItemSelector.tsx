@@ -29,6 +29,14 @@ interface SSRItem {
   category: string;
 }
 
+interface HierarchicalSSRItem extends SSRItem {
+  level: number;
+  parentCode?: string;
+  fullDescription: string;
+  hierarchy: string[];
+  indentLevel: number;
+}
+
 const mockSSRItems: SSRItem[] = [
   {
     id: "1",
@@ -73,6 +81,7 @@ interface SSRItemSelectorProps {
 export function SSRItemSelector({ open, onOpenChange, onSelect }: SSRItemSelectorProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState<SSRItem | null>(null);
+  const [viewMode, setViewMode] = useState<"flat" | "hierarchical">("flat");
 
   const filteredItems = mockSSRItems.filter(
     (item) =>
@@ -101,15 +110,33 @@ export function SSRItemSelector({ open, onOpenChange, onSelect }: SSRItemSelecto
         </DialogHeader>
 
         <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by code, description, or category..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-              data-testid="input-search-ssr"
-            />
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by code, description, or category..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+                data-testid="input-search-ssr"
+              />
+            </div>
+            <div className="flex gap-1">
+              <Button 
+                variant={viewMode === "flat" ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setViewMode("flat")}
+              >
+                Flat
+              </Button>
+              <Button 
+                variant={viewMode === "hierarchical" ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setViewMode("hierarchical")}
+              >
+                Hierarchical
+              </Button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-auto border rounded-md">
@@ -134,7 +161,20 @@ export function SSRItemSelector({ open, onOpenChange, onSelect }: SSRItemSelecto
                     data-testid={`row-ssr-${item.id}`}
                   >
                     <TableCell className="font-mono text-sm">{item.code}</TableCell>
-                    <TableCell className="text-sm">{item.description}</TableCell>
+                    <TableCell className="text-sm">
+                      {viewMode === "hierarchical" ? (
+                        <div className="flex items-center">
+                          <div className="flex gap-1 mr-2">
+                            {Array.from({ length: (item as HierarchicalSSRItem).level || 0 }).map((_, i) => (
+                              <div key={i} className="w-4 h-4 border-r border-b border-gray-400"></div>
+                            ))}
+                          </div>
+                          {item.description}
+                        </div>
+                      ) : (
+                        item.description
+                      )}
+                    </TableCell>
                     <TableCell className="text-sm">{item.unit}</TableCell>
                     <TableCell className="text-right font-mono text-sm">
                       {item.rate}

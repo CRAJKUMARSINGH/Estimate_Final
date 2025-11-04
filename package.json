@@ -4,11 +4,14 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "dev": "NODE_ENV=development tsx server/index.ts",
+    "dev": "concurrently -n client,server -c green,blue \"npm:client:dev\" \"npm:server:dev\"",
+    "client:dev": "vite --host",
+    "server:dev": "tsx server/index.ts",
     "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "pdf:item5": "node scripts/generate-ssr-item-5-pdf.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -43,11 +46,16 @@
     "@radix-ui/react-tooltip": "^1.2.0",
     "@tanstack/react-query": "^5.60.5",
     "@types/multer": "^2.0.0",
+    "@types/sqlite3": "^3.1.11",
+    "@types/uuid": "^10.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "connect-pg-simple": "^10.0.0",
+    "cors": "^2.8.5",
+    "compression": "^1.7.4",
     "date-fns": "^3.6.0",
+    "decimal.js": "^10.6.0",
     "drizzle-orm": "^0.39.1",
     "drizzle-zod": "^0.7.0",
     "embla-carousel-react": "^8.6.0",
@@ -69,13 +77,16 @@
     "react-icons": "^5.4.0",
     "react-resizable-panels": "^2.1.7",
     "recharts": "^2.15.2",
+    "sqlite3": "^5.1.7",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "tw-animate-css": "^1.2.5",
+    "uuid": "^13.0.0",
     "vaul": "^1.1.2",
     "wouter": "^3.3.5",
     "ws": "^8.18.0",
     "xlsx": "^0.18.5",
+    "pdfkit": "^0.15.0",
     "zod": "^3.24.2",
     "zod-validation-error": "^3.4.0"
   },
@@ -96,13 +107,14 @@
     "@types/ws": "^8.5.13",
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.4.20",
-    "drizzle-kit": "^0.31.4",
+    "concurrently": "^9.0.1",
+    "drizzle-kit": "^0.18.1",
     "esbuild": "^0.25.0",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.20.5",
     "typescript": "5.6.3",
-    "vite": "^5.4.20"
+    "vite": "^6.4.1"
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"

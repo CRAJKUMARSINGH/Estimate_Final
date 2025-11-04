@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Dialog,
@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
-import { SSRItem } from "@shared/schema";
+import { SSRItem, HierarchicalSSRItem } from "@shared/schema";
 
 interface SSRItemSelectorConnectedProps {
   open: boolean;
@@ -32,13 +32,23 @@ interface SSRItemSelectorConnectedProps {
 export function SSRItemSelectorConnected({ open, onOpenChange, onSelect }: SSRItemSelectorConnectedProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState<SSRItem | null>(null);
+  const [viewMode, setViewMode] = useState<"flat" | "hierarchical">("flat");
 
   const { data: ssrItems = [], isLoading } = useQuery<SSRItem[]>({
     queryKey: ['/api/ssr-items'],
     queryFn: () => api.getSSRItems(),
   });
 
-  const filteredItems = ssrItems.filter(
+  const { data: hierarchicalSSRItems = [], isLoading: isHierarchicalLoading } = useQuery<HierarchicalSSRItem[]>({
+    queryKey: ['/api/hierarchical-ssr-items'],
+    queryFn: () => api.getHierarchicalSSRItems(),
+    enabled: viewMode === "hierarchical",
+  });
+
+  const itemsToDisplay = viewMode === "hierarchical" ? hierarchicalSSRItems : ssrItems;
+  const isLoadingItems = viewMode === "hierarchical" ? isHierarchicalLoading : isLoading;
+
+  const filteredItems = itemsToDisplay.filter(
     (item) =>
       item.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -65,19 +75,37 @@ export function SSRItemSelectorConnected({ open, onOpenChange, onSelect }: SSRIt
         </DialogHeader>
 
         <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by code, description, or category..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-              data-testid="input-search-ssr"
-            />
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by code, description, or category..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+                data-testid="input-search-ssr"
+              />
+            </div>
+            <div className="flex gap-1">
+              <Button 
+                variant={viewMode === "flat" ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setViewMode("flat")}
+              >
+                Flat
+              </Button>
+              <Button 
+                variant={viewMode === "hierarchical" ? "default" : "outline"} 
+                size="sm"
+                onClick={() => setViewMode("hierarchical")}
+              >
+                Hierarchical
+              </Button>
+            </div>
           </div>
 
           <div className="flex-1 overflow-auto border rounded-md">
-            {isLoading ? (
+            {isLoadingItems ? (
               <div className="p-8 text-center text-muted-foreground">
                 Loading SSR items...
               </div>
@@ -103,7 +131,27 @@ export function SSRItemSelectorConnected({ open, onOpenChange, onSelect }: SSRIt
                       data-testid={`row-ssr-${item.id}`}
                     >
                       <TableCell className="font-mono text-sm">{item.code}</TableCell>
-                      <TableCell className="text-sm">{item.description}</TableCell>
+                      <TableCell className="text-sm">
+                        {viewMode === "hierarchical" && 'level' in item ? (
+                          <div className="flex items-start">
+                            <div className="flex gap-1 mr-2 mt-1">
+                              {Array.from({ length: (item as HierarchicalSSRItem).indentLevel }).map((_, i) => (
+                                <div key={i} className="w-3 h-3 border-r border-b border-gray-400"></div>
+                              ))}
+                            </div>
+                            <div>
+                              <div>{item.description}</div>
+                              {(item as HierarchicalSSRItem).level > 0 && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  Parent: {(item as HierarchicalSSRItem).hierarchy.slice(0, -1).join(' > ')}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          item.description
+                        )}
+                      </TableCell>
                       <TableCell className="text-sm">{item.unit}</TableCell>
                       <TableCell className="text-right font-mono text-sm">
                         {parseFloat(item.rate).toFixed(2)}

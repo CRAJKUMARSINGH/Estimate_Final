@@ -1,39 +1,30 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, decimal, jsonb } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod";
+export interface SSRItem {
+  id: string;
+  code: string;
+  description: string;
+  unit: string;
+  rate: string;
+  category?: string;
+}
 
-export const estimates = pgTable("estimates", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  projectName: text("project_name").notNull(),
-  location: text("location"),
-  engineerName: text("engineer_name"),
-  referenceNumber: text("reference_number"),
-  dateCreated: timestamp("date_created").notNull().defaultNow(),
-  status: text("status").notNull().default("draft"),
-  excelData: jsonb("excel_data"),
-  fileName: text("file_name"),
-});
+export interface HierarchicalSSRItem extends SSRItem {
+  level: number;
+  parentCode?: string;
+  fullDescription: string;
+  hierarchy: string[];
+  indentLevel: number;
+}
 
-export const ssrItems = pgTable("ssr_items", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  code: text("code").notNull().unique(),
-  description: text("description").notNull(),
-  unit: text("unit").notNull(),
-  rate: decimal("rate", { precision: 10, scale: 2 }).notNull(),
-  category: text("category"),
-});
-
-export const insertEstimateSchema = createInsertSchema(estimates).omit({
-  id: true,
-  dateCreated: true,
-});
-
-export const insertSSRItemSchema = createInsertSchema(ssrItems).omit({
-  id: true,
-});
-
-export type InsertEstimate = z.infer<typeof insertEstimateSchema>;
-export type Estimate = typeof estimates.$inferSelect;
-export type InsertSSRItem = z.infer<typeof insertSSRItemSchema>;
-export type SSRItem = typeof ssrItems.$inferSelect;
+export interface Estimate {
+  id: string;
+  projectName: string;
+  location?: string;
+  engineerName?: string;
+  referenceNumber?: string;
+  fileName?: string;
+  status: string;
+  excelData?: {
+    sheetNames: string[];
+    parts: Array<{ partNumber: number; costSheet: string; measurementSheet: string }>;
+  };
+}

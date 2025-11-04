@@ -32,9 +32,16 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
+    host: true,
     fs: {
       strict: true,
       deny: ["**/.*"],
+    },
+    proxy: {
+      "/api": {
+        target: "http://localhost:3001",
+        changeOrigin: true,
+      },
     },
   },
 });
