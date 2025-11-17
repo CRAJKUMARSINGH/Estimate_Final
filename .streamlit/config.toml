@@ -23,12 +23,14 @@ gatherUsageStats = false
 showErrorDetails = false
 
 [theme]
-# UI theme configuration
-primaryColor = "#1f4e79"
-backgroundColor = "#ffffff"
-secondaryBackgroundColor = "#f0f2f6"
-textColor = "#262730"
+# Professional PWD Estimator Theme (inspired by estimate folder)
+# Light Blue professional theme matching PySimpleGUI 'LightBlue2'
+primaryColor = "#4A90E2"  # Professional blue
+backgroundColor = "#FFFFFF"  # Clean white
+secondaryBackgroundColor = "#E8F4F8"  # Light blue tint
+textColor = "#1A1A1A"  # Dark text for readability
 font = "sans serif"
+base = "light"
 
 [client]
 # Client-side settings

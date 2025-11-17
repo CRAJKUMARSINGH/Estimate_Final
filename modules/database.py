@@ -4,13 +4,14 @@ Database Module for Construction Estimation System
 Handles data persistence and retrieval
 """
 
-import sqlite3
-import pandas as pd
-import json
-from datetime import datetime
-from typing import Dict, List, Optional
-import streamlit as st
 import os
+import sqlite3
+from datetime import datetime
+from typing import Dict
+
+import pandas as pd
+import streamlit as st
+
 
 class EstimationDatabase:
     """Database handler for construction estimation data"""

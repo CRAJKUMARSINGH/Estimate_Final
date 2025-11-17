@@ -1,97 +1,156 @@
-# 🏗️ CONSTRUCTION ESTIMATION SYSTEM - UNIFIED VERSION
+# 🏗️ Construction Estimation System
 
-## 🎯 OVERVIEW
+A complete, production-ready construction cost estimation application with advanced features for project management, Excel import, and real-time calculations.
 
-**Complete, production-ready construction cost estimation application**  
-This is now the consolidated, unified version that combines all the best features from multiple previous versions into a single, well-organized application.
+## ⚡ Quick Start
 
-## 📢 IMPORTANT NOTICE
+### Windows (Recommended)
 
-This repository has been cleaned up and consolidated. The unified application is now directly in the root directory for easier access.
+1. Clone the repository
+2. Run `setup.bat` to install dependencies
+3. Run `run_unified_app.bat` to start the application
 
-## 🚀 QUICK START (2 Minutes)
+### Manual Installation
 
-### Run the Application
-```
-streamlit run app.py
-```
+```bash
+# Create virtual environment
+python -m venv venv
 
-Or simply double-click the `run_unified_app.bat` file on Windows.
+# Activate virtual environment
+# Windows:
+venv\Scripts\activate
+# macOS/Linux:
+source venv/bin/activate
 
-> **Note**: If you encounter permission issues, use the Python 3.11 installation:
-> `C:\Users\Rajkumar\AppData\Local\Programs\Python\Python311\python.exe -m streamlit run app.py`
+# Install dependencies
+pip install -r requirements.txt
 
-## 🎯 KEY FEATURES
-
-### 📥 **Smart Excel Import**
-- **Auto-Detection**: Identifies measurement vs abstract sheets
-- **Formula Preservation**: Maintains all Excel calculations
-- **Auto-Linking**: Connects measurements to abstracts (80-90% accuracy)
-- **Progress Tracking**: Real-time import feedback
-- **Comprehensive Reports**: Detailed import statistics
-
-### ⚡ **Real-time Calculations**
-- **Instant Updates**: Changes propagate automatically
-- **Multiple Types**: Standard, Linear, Area, Volume, Circular
-- **Dependency Tracking**: Maintains calculation relationships
-- **Performance Optimized**: Handles large datasets efficiently
-
-### 💾 **Database Integration**
-- **Zero Data Loss**: All projects automatically saved
-- **Version History**: Track all changes over time
-- **Multi-Project**: Manage unlimited estimates
-- **Backup & Recovery**: Automatic data protection
-
-### 📊 **Visual Analytics**
-- **Cost Breakdown**: Interactive pie charts and bar graphs
-- **Progress Tracking**: Visual project monitoring
-- **Summary Reports**: Comprehensive analysis
-- **Export Options**: PDF and CSV export capabilities
-
-## 📁 NEW DIRECTORY STRUCTURE
-
-```
-app.py              # Main unified application (Streamlit standard)
-requirements.txt    # Dependencies (Python standard)
-run_unified_app.bat # Windows launcher
-README.md           # This file
+# Run the application
+streamlit run streamlit_app.py
 ```
 
-## 🧹 CLEANUP SUMMARY
+### Docker
 
-The following duplicate files have been removed and consolidated:
-- `app.py` (root directory) - *replaced with standard app.py*
-- `app1.py` (root directory)
-- `enhanced_construction_estimator.py` (root directory)
-- `estimate_replit/construction_estimation_app.py`
-- Multiple versions in nested directories
-- The `consolidated_app` directory (files moved to root)
-- `requirements_unified.txt` (merged into standard `requirements.txt`)
+```bash
+# Build and run with Docker Compose
+docker-compose up -d
 
-All features from these files have been incorporated into the single unified application now located in the root directory.
+# Access at http://localhost:8501
+```
 
-## 🛠️ TECHNICAL SPECIFICATIONS
+## 🎯 Features
 
-### System Requirements:
-- **Python**: 3.8 or higher
-- **Streamlit**: Latest version
-- **Dependencies**: pandas, plotly, openpyxl, fuzzywuzzy, reportlab
+### Smart Import Wizard
+- Multi-step process: Upload → Analyze → Preview → Import
+- Real-time file analysis and validation
+- SSR fuzzy matching with 90% accuracy
+- Formula preservation from Excel
+- Row selection and filtering
+- Max file size: 5 MB, Max rows: 10,000
 
-### Performance Benchmarks:
-- **Excel Import**: 1-2 seconds for typical files
-- **Real-time Calculations**: <0.1 seconds
-- **Database Operations**: <1 second
-- **Memory Usage**: Optimized for large datasets
+### Modern Dashboard
+- Real-time project statistics
+- Quick actions and shortcuts
+- Visual progress tracking
+- Recent activity timeline
 
-## 📞 SUPPORT & RESOURCES
+### Real-time Calculations
+- Instant updates across all items
+- Multiple calculation types (Standard, Linear, Area, Volume, Circular)
+- Dependency tracking
+- Performance optimized for large datasets
 
-### Getting Help:
-- **Documentation**: This README contains all the necessary information
-- **Email**: crajkumarsingh@hotmail.com
+### Database Integration
+- Zero data loss with automatic saving
+- Version history tracking
+- Multi-project management
+- Backup and recovery
+
+### Visual Analytics
+- Interactive cost breakdowns
+- Progress tracking charts
+- Summary reports
+- PDF and CSV export
+
+### Security Features
+- Input validation and sanitization
+- SQL injection prevention
+- Path traversal protection
+- Secure password hashing
+- Session management
+
+## 📋 Requirements
+
+- Python 3.8 or higher
+- 5 MB disk space for uploads
+- Modern web browser
+
+## 🔒 Security
+
+This application implements:
+- Parameterized SQL queries (SQLAlchemy)
+- File upload validation (size, type, content)
+- Input sanitization
+- Secure file handling
+- Environment variable configuration
+
+## 📝 Configuration
+
+Copy `.env.example` to `.env` and configure:
+
+```bash
+DATABASE_URL=sqlite:///construction_estimates.db
+JWT_SECRET=your-secret-key-here
+MAX_FILE_SIZE_MB=5
+MAX_ROWS=10000
+```
+
+For Streamlit-specific settings, edit `.streamlit/secrets.toml` (not committed to git).
+
+## 🐛 Troubleshooting
+
+### Application won't start
+1. Check Python version: `python --version` (must be 3.8+)
+2. Reinstall dependencies: `pip install -r requirements.txt`
+3. Check logs: `logs/app.log`
+
+### Import fails
+- Ensure file is under 5 MB
+- Ensure file has fewer than 10,000 rows
+- Check file format (.xlsx or .xls)
+- Verify Excel file is not corrupted
+
+### Performance issues
+- Reduce number of items in estimate
+- Close other browser tabs
+- Check system resources
+
+## � Poerformance
+
+- Excel import: 1-2 seconds for typical files
+- Real-time calculations: <0.1 seconds
+- Database operations: <1 second
+- Optimized for files up to 10,000 rows
+
+## 🤝 Contributing
+
+This is a production application. For issues or feature requests, contact: crajkumarsingh@hotmail.com
+
+## 📄 License
+
+MIT License - see LICENSE file for details
+
+## � Version H istory
+
+- v7.0 (2025-11) - Smart integration with security hardening
+- v5.0 (2025-11) - Unified and consolidated
+- Earlier versions - Feature development
+
+## 📞 Support
+
+Email: crajkumarsingh@hotmail.com
 
 ---
 
-*README updated: November 2025*  
-*Version: 5.0 (Unified & Consolidated)*  
-*Status: Production Ready*  
-*Priority: Ready for immediate use*
+**Status**: Production Ready ✅  
+**Last Updated**: November 2025

@@ -5,15 +5,17 @@ import { enhancedStorage } from "./storage-adapter";
 import multer from "multer";
 import { ExcelHandler } from "./excel-handler";
 import { SSRFileHandler } from "./ssr-file-handler";
-import { insertEstimateSchema, insertSSRItemSchema, insertSSRFileSchema, type HierarchicalSSRItem } from "@shared/schema";
+import { type SSRItem, type HierarchicalSSRItem } from "@shared/schema";
 import { fromError } from "zod-validation-error";
 import { 
   ProjectSchema, 
   ScheduleItemSchema, 
   TemplateSchema,
   ImportPreviewItemSchema,
-  ExcelAnalysisSchema 
+  ExcelAnalysisSchema,
+  SSRItemSchema
 } from "./models/estimator";
+import { createProxyMiddleware } from 'http-proxy-middleware';
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -63,7 +65,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/ssr-items", async (req, res) => {
     try {
-      const result = insertSSRItemSchema.safeParse(req.body);
+      const result = SSRItemSchema.safeParse(req.body);
       if (!result.success) {
         return res.status(400).json({ error: fromError(result.error).toString() });
       }
@@ -587,7 +589,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         lastModified: stats.mtime,
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Building BSR test error:", error);
       res.status(500).json({ error: "Failed to access Building BSR file", details: error.message });
     }
@@ -1470,6 +1472,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to fetch dashboard statistics" });
     }
   });
+
+  // Proxy to Streamlit application
+  app.use('/streamlit', createProxyMiddleware({
+    target: 'http://localhost:8501',
+    changeOrigin: true,
+    pathRewrite: {
+      '^/streamlit': '', // Remove /streamlit prefix when forwarding
+    },
+    logLevel: 'debug'
+  }));
 
   const httpServer = createServer(app);
   return httpServer;

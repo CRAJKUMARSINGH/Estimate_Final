@@ -1,9 +1,0 @@
-{
-  "deployment_date": "2025-11-02 18:31:19",
-  "app_version": "2.0 (Optimized)",
-  "python_version": "3.13.7 (tags/v3.13.7:bcee1c3, Aug 14 2025, 14:15:11) [MSC v.1944 64 bit (AMD64)]",
-  "streamlit_ready": true,
-  "git_ready": true,
-  "tests_passed": true,
-  "files_optimized": true
-}
